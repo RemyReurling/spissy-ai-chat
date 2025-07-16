@@ -60,3 +60,7 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# IDE and editor history files
+.history/
+.specstory/
