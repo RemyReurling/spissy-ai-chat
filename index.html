@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPISSY, the AI SPIS analyst</title>
+  <link rel="icon" type="image/png" href="img/avataaars.png" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -573,9 +574,71 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     // Scroll to bottom when page loads
     scrollToBottom();
     
-    // Auto-send "hi" to initialize the conversation
+    // Auto-send "hi" to initialize the conversation (invisible to user)
     async function initializeChat() {
-      await streamAssistantMessage("hi");
+      // Add "hi" to conversation history without showing it in UI
+      conversation.push({ role: 'user', content: "hi" });
+      
+      // Get AI response without showing the user message
+      const response = await fetch('/api/openai-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: conversation,
+          stream: true
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const responseText = await response.text();
+      let assistantText = '';
+      
+      // Parse the streamed response data
+      const lines = responseText.split('\n');
+      let tokens = [];
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.replace('data: ', '').trim();
+          if (data === '[DONE]') break;
+          try {
+            const json = JSON.parse(data);
+            const content = json.choices?.[0]?.delta?.content;
+            if (content) {
+              tokens.push(content);
+            }
+          } catch (e) {
+            // Ignore parse errors for malformed chunks
+          }
+        }
+      }
+      
+      // Create assistant message and display it
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      messagesDiv.appendChild(msg);
+      
+      // Simulate streaming by displaying tokens progressively
+      let tokenIndex = 0;
+      const streamInterval = setInterval(() => {
+        if (tokenIndex < tokens.length) {
+          assistantText += tokens[tokenIndex];
+          msg.innerHTML = marked.parse(assistantText);
+          setTimeout(() => {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          }, 5);
+          tokenIndex++;
+        } else {
+          clearInterval(streamInterval);
+          conversation.push({ role: 'assistant', content: assistantText });
+        }
+      }, 50);
     }
     
     // Initialize chat when page loads
