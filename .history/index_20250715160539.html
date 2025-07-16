@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPISSY, the AI SPIS analyst</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --main-color: #5B18C2;
+      --accent-color: #00D8AE;
+      --font-family: 'Plus Jakarta Sans', 'Open Sans', Arial, sans-serif;
+      --modal-bg: rgba(255,255,255,0.85);
+      --modal-blur: blur(12px);
+      --modal-font: #222;
+    }
+    body {
+      margin: 0;
+      background-color: var(--main-color);
+      /* Large, non-repeating tessellation inspired by Justin Prno's Tesselation 18, with more random angles */
+      background-image: url('data:image/svg+xml;utf8,<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="%235B18C2"/><polygon points="0,0 700,80 400,600" fill="%237C3AED"/><polygon points="700,80 1300,60 900,700" fill="%233B0A6F"/><polygon points="1300,60 1920,0 1700,600" fill="%237C3AED"/><polygon points="400,600 900,700 600,1080" fill="%233B0A6F"/><polygon points="900,700 1700,600 1200,1080" fill="%237C3AED"/><polygon points="1700,600 1920,1080 1200,1080" fill="%233B0A6F"/><polygon points="0,1080 600,1080 400,600" fill="%237C3AED"/><polygon points="700,80 400,600 900,700" fill="%235B18C2"/><polygon points="900,700 1300,60 1700,600" fill="%235B18C2"/><polygon points="400,600 600,1080 900,700" fill="%237C3AED"/></svg>');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+      font-family: var(--font-family);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      display: none;
+    }
+    h1 {
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: 1px;
+      font-size: 2rem;
+    }
+    .avatar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2000;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #7DD3FC;
+      box-shadow: 0 2px 8px rgba(91,24,194,0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      /* Center the avatar so its midpoint touches the top left edge of the chat container */
+      transform: translate(-50%, -50%);
+    }
+    .avatar img {
+      width: 62px;
+      height: 62px;
+      object-fit: cover;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%) scale(1.1);
+      box-shadow: 0 4px 16px rgba(91,24,194,0.10);
+      background: #7DD3FC;
+    }
+    .chat-container {
+      background: rgba(255,255,255,0.32);
+      border-radius: 24px;
+      box-shadow: 0 4px 32px rgba(91,24,194,0.12);
+      width: 92vw;
+      max-width: 1400px;
+      min-height: 540px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      outline: 1.5px solid rgba(91,24,194,0.10);
+    }
+    .messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.18);
+      color: #222;
+      font-size: 1.08rem;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--accent-color);
+      color: var(--main-color);
+      padding: 10px 18px;
+      border-radius: 18px 18px 4px 18px;
+      max-width: 80%;
+      font-weight: 600;
+    }
+    .message.assistant {
+      align-self: flex-start;
+      background: #f3f3f3;
+      color: #222;
+      padding: 10px 18px;
+      border-radius: 18px 18px 18px 4px;
+      max-width: 80%;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+      padding: 16px;
+    }
+    .chat-input input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      font-family: var(--font-family);
+      background: transparent;
+      color: #222;
+      padding: 10px 12px;
+    }
+    .chat-input button {
+      background: var(--accent-color);
+      color: var(--main-color);
+      border: none;
+      border-radius: 18px;
+      padding: 10px 24px;
+      font-size: 1rem;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .chat-input button:hover {
+      background: #00c09c;
+    }
+    
+    /* Speech Bubble Loading Animation */
+    .speech-bubble-loading {
+      position: absolute;
+      bottom: 80px;
+      left: 24px;
+      font-size: 24px;
+      animation: float-bubble 2s ease-in-out infinite;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .speech-bubble-loading.show {
+      opacity: 1;
+    }
+    
+    @keyframes float-bubble {
+      0% {
+        transform: translateX(-20px) translateY(0px);
+        opacity: 0;
+      }
+      20% {
+        opacity: 1;
+      }
+      50% {
+        transform: translateX(calc(100vw - 100px)) translateY(-10px);
+        opacity: 1;
+      }
+      80% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(calc(100vw + 50px)) translateY(0px);
+        opacity: 0;
+      }
+    }
+    
+    /* Onboarding Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(91,24,194,0.18);
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--modal-bg);
+      color: var(--modal-font);
+      border-radius: 24px;
+      box-shadow: 0 8px 40px rgba(91,24,194,0.18);
+      padding: 40px 32px 32px 32px;
+      min-width: 320px;
+      max-width: 90vw;
+      backdrop-filter: var(--modal-blur);
+      -webkit-backdrop-filter: var(--modal-blur);
+      text-align: center;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+      font-weight: 600;
+    }
+    .modal-content p {
+      color: #333;
+      margin-bottom: 32px;
+    }
+    .modal-content button {
+      background: var(--accent-color);
+      color: var(--main-color);
+      border: none;
+      border-radius: 18px;
+      padding: 10px 32px;
+      font-size: 1.1rem;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,216,174,0.08);
+      transition: background 0.2s;
+    }
+    .modal-content button:hover {
+      background: #00c09c;
+    }
+    @media (max-width: 900px) {
+      .chat-container {
+        width: 100vw;
+        max-width: 100vw;
+        min-height: 70vh;
+        border-radius: 0;
+      }
+      .header {
+        padding: 24px 2vw 0 2vw;
+      }
+    }
+    @media (max-width: 600px) {
+      .chat-container {
+        width: 100vw;
+        max-width: 100vw;
+        min-height: 70vh;
+        border-radius: 0;
+      }
+      .header {
+        padding: 16px 2vw 0 2vw;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+      }
+      .modal-content {
+        min-width: 0;
+        padding: 24px 8px 16px 8px;
+      }
+    }
+  </style>
+  <!-- Add marked.js for markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <h1 style="margin-top:32px; text-align:center;">SPISSY, the AI SPIS analyst</h1>
+  <div style="position: relative; width: 92vw; max-width: 1400px; margin: 32px auto 0 auto;">
+    <div class="avatar">
+      <img id="avatar-img" src="img/avataaars.png" alt="SPISSY Avatar" />
+    </div>
+    <div class="chat-container">
+      <div class="messages" id="messages"></div>
+      <div class="speech-bubble-loading" id="speech-bubble-loading">💬</div>
+      <form class="chat-input" id="chat-form" autocomplete="off">
+        <input type="text" id="user-input" placeholder="Type your message..." required />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+  <div class="modal" id="onboarding-modal" style="display:none;">
+    <div class="modal-content">
+      <h2>Welcome to the demo environment for SPISSY</h2>
+      <p>Just relax, let SPISSY guide you and get instant help.<br/><br/>Ready to get started?</p>
+      <button id="close-modal">Get Started</button>
+    </div>
+  </div>
+  <script>
+    // System prompt is always included, not visible to users
+    const SYSTEM_PROMPT = `Help de gebruiker stapsgewijs om een onderbouwde verantwoording te schrijven voor hun investering in tijd, geld en middelen, gebaseerd op het SPIS-model (zonder deze term te noemen), inclusief stakeholderanalyse, dynamische voorbeeldantwoorden en eindrapportage in projectvorm. Dit doe je door stapsgewijs vragen te stellen. Stel 1 vraag per bericht. Pas na het antwoord ga je door met vraag 2. Je start zodra de gebruiker /start zegt. 
+
+1. Vraag eerst: 
+
+   "Wat is het thema, onderwerp of probleem waar jullie aan willen werken?" 
+
+   (Bijv. samenwerken tussen afdelingen, onboarding verbeteren, vitaliteit op de werkvloer, verloop verlagen, klantgerichtheid vergroten, etc.) 
+
+--- 
+
+2. Als gebruiker antwoord geeft, ga verder met: 
+
+   "Wie zijn de mensen, rollen of afdelingen die een groot tot zeer groot belang hebben bij dit thema?" 
+
+   (Bijvoorbeeld: teamleiders, HR, directie, klantenservice, nieuwe medewerkers, etc.) 
+
+   ➡️ Voorbeeldantwoord: 
+
+   "Het team Customer Support, HR Business Partners en de leidinggevende van Operations hebben hier veel belang bij." 
+
+   Wacht op antwoord. 
+
+--- 
+
+3. Vervolgens: 
+
+   "En wie van deze belanghebbenden hebben waarschijnlijk ook grote tot zeer grote invloed op dit thema?" 
+
+   (Denk aan beslissingsbevoegdheid, voorbeeldgedrag, of ownership.) 
+
+   ➡️ Voorbeeldantwoord: 
+
+   "De manager Operations en de HR Business Partner hebben een duidelijke stem in hoe we dit thema aanpakken." 
+
+   Wacht op antwoord. 
+
+--- 
+
+4. Maak op basis van het bovenstaande een eenvoudige stakeholdermatrix in tekstvorm met deze structuur: 
+
+Hoge invloed | Beïnvloeder (tevreden houden): [vul zelf in]   | Sleutelfiguur (samenwerken): [vul ik in] 
+--------------------------------------------------------------------------------------------------------- 
+Lage invloed  | Toeschouwer (weinig aandacht): [vul zelf in]  | Geïnteresseerde (informeren): [vul ik in] 
+                       | Laag belang                                                         | Hoog belang 
+
+Vul de vakken ‘Geïnteresseerde’ en ‘Sleutelfiguur’ automatisch in op basis van de antwoorden van de gebruiker op vraag 2 en 3 hierboven. 
+Adviseer de gebruiker om de vakken ‘Toeschouwer’ en ‘Beïnvloeder’ zelf nog aan te vullen indien gewenst. 
+
+--- 
+
+5. Ga nu stap voor stap door onderstaande 9 vragen. Gebruik deze structuur per vraag: 
+
+✳️ Vraag [nummer]: [inhoud van de vraag] 
+
+- Stel de vraag zoals hieronder omschreven. 
+- Voeg een of twee voorbeeldantwoorden toe, gebaseerd op het eerder gegeven thema, onderwerp of probleem. (Laat deze voorbeelden dynamisch aansluiten op het thema.) 
+- Geef per vraag advies of de gebruiker deze het best kan beantwoorden met de Sleutelfiguur, Geïnteresseerde, of een combinatie van beiden. 
+--- 
+
+🔟 De 9 vragen (formulering en bijbehorende instructies) 
+
+--- 
+
+🔹 Vraag 1: 
+
+"Hoe gaat het nu? Wat doen jullie op dit moment wél en wat níet? Wat levert dit nu op?" 
+
+Geef twee voorbeeldantwoorden die passen bij het opgegeven thema. 
+Adviseer: Bespreek deze vraag met de Sleutelfiguur, eventueel aangevuld met Geïnteresseerde(n). 
+--- 
+
+🔹 Vraag 2: 
+
+"Wat mist er momenteel of waarom voldoet dit nog niet?" 
+
+Geef twee voorbeeldantwoorden. 
+Adviseer: Bespreek met Sleutelfiguur en Geïnteresseerde(n). 
+--- 
+
+🔹 Vraag 3: 
+
+"Wat zijn de gevolgen hiervan in de praktijk of voor de resultaten?" 
+
+Geef twee voorbeeldantwoorden. 
+Adviseer: Laat invullen door Sleutelfiguur. Vraag feedback van Geïnteresseerde(n). 
+--- 
+
+🔹 Vraag 4: 
+
+"Hoe zou de dagelijkse praktijk of het resultaat eruitzien als dit wél goed geregeld is?" 
+
+Geef twee voorbeeldantwoorden. 
+Adviseer: Bespreek dit met Sleutelfiguur. 
+--- 
+
+🔹 Vraag 5: 
+
+"Hoe groot is de doelgroep die hier direct of indirect mee te maken heeft?" 
+
+Geef twee voorbeeldantwoorden. 
+Adviseer: Kan ingevuld worden door Sleutelfiguur of Geïnteresseerde. 
+--- 
+
+🔹 Vraag 6: 
+
+"Wat zou dit opleveren voor jullie organisatie, team(s) of HR? Waarom willen jullie dit?" 
+
+Geef twee voorbeeldantwoorden. 
+Adviseer: Betrek hier zeker de Sleutelfiguur bij. HR is vaak ook sleutelrol. 
+--- 
+
+🔹 Vraag 7: 
+
+"Wat is er allemaal nodig om deze verandering te realiseren? Denk breed en out-of-the-box." 
+
+Geef twee creatieve voorbeeldantwoorden. 
+Adviseer: Organiseer een brainstorm met Sleutelfiguur en Geïnteresseerde(n). 
+--- 
+
+🔹 Vraag 8: 
+
+"Welke rol kan leren & ontwikkelen hierin spelen? Welke bijdrage kan dit leveren? (Wees specifiek.)" 
+
+Geef twee voorbeeldantwoorden die aansluiten op het gekozen thema. 
+Adviseer: Laat dit bespreken met Sleutelfiguur. L&D-specialisten kunnen hierbij ook betrekken. 
+--- 
+
+🔹 Vraag 9: 
+
+"Welke oplossingen willen jullie uitwerken in concrete acties? Denk ook aan mijlpalen en deadlines." 
+
+Geef twee voorbeeldantwoorden met een globale tijdlijn. 
+Adviseer: Beantwoord samen met Sleutelfiguur. Maak afspraken over uitvoering. 
+--- 
+
+🧾 Tot slot: 
+
+Als alle vragen zijn beantwoord: 
+
+Genereer een projectmatige verantwoording in het Nederlands, zonder verwijzing naar SPIS. De tekst bevat: 
+
+- Een korte introductie over het thema/probleem 
+- De eerder opgestelde Stakeholdermatrix 
+- Beschrijving van de huidige situatie 
+- Beschrijving van de gewenste situatie 
+- De route van huidig naar gewenst m.b.v. leren en ontwikkelen 
+- Waarom dit belangrijk is voor organisatie, teams en medewerkers 
+- Concrete acties en oplossingen 
+- Tijdlijn met mijlpalen 
+
+Gebruik een toegankelijke en professionele schrijfstijl. Maak je antwoorden op door Markdown te gebruiken. .
+De verantwoording moet geschikt zijn om te delen met stakeholders.`;
+
+    // Persistent conversation history
+    let conversation = [
+      { role: 'system', content: SYSTEM_PROMPT }
+    ];
+
+    // Onboarding modal logic
+    const modal = document.getElementById('onboarding-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    if (!localStorage.getItem('onboarded')) {
+      modal.style.display = 'flex';
+    }
+    closeModalBtn.onclick = () => {
+      modal.style.display = 'none';
+      localStorage.setItem('onboarded', '1');
+    };
+
+    // Chat logic
+    const messagesDiv = document.getElementById('messages');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+
+    function addMessage(text, sender) {
+      const msg = document.createElement('div');
+      msg.className = 'message ' + sender;
+      if (sender === 'assistant') {
+        msg.innerHTML = marked.parse(text);
+      } else {
+        msg.textContent = text;
+      }
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    async function streamAssistantMessage(prompt) {
+      // Add user message to UI and conversation
+      addMessage(prompt, 'user');
+      conversation.push({ role: 'user', content: prompt });
+      // Add assistant message placeholder
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      
+      // Show speech bubble loading animation
+      const speechBubble = document.getElementById('speech-bubble-loading');
+      speechBubble.classList.add('show');
+      
+      // Avatar cycling logic
+      const avatarImg = document.getElementById('avatar-img');
+      const avatarFrames = ['img/avataaars.png', 'img/avataaars (3).png'];
+      let avatarFrame = 0;
+      let avatarInterval = setInterval(() => {
+        avatarFrame = 1 - avatarFrame;
+        avatarImg.src = avatarFrames[avatarFrame];
+      }, 200);
+      // Stream from Netlify Function
+      try {
+        const response = await fetch('/api/openai-proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages: conversation,
+            stream: true
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const responseText = await response.text();
+        let assistantText = '';
+        
+        // Parse the streamed response data
+        const lines = responseText.split('\n');
+        let tokens = [];
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.replace('data: ', '').trim();
+            if (data === '[DONE]') break;
+            try {
+              const json = JSON.parse(data);
+              const content = json.choices?.[0]?.delta?.content;
+              if (content) {
+                tokens.push(content);
+              }
+            } catch (e) {
+              // Ignore parse errors for malformed chunks
+            }
+          }
+        }
+        
+        // Simulate streaming by displaying tokens progressively
+        let tokenIndex = 0;
+        const streamInterval = setInterval(() => {
+          if (tokenIndex < tokens.length) {
+            assistantText += tokens[tokenIndex];
+            msg.innerHTML = marked.parse(assistantText);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            tokenIndex++;
+          } else {
+            clearInterval(streamInterval);
+            // Add assistant message to conversation history
+            conversation.push({ role: 'assistant', content: assistantText });
+            // Stop avatar cycling when streaming ends
+            clearInterval(avatarInterval);
+            avatarImg.src = avatarFrames[0];
+          }
+        }, 50); // Adjust speed as needed
+        
+      } catch (e) {
+        msg.textContent = 'Error: ' + e.message;
+        clearInterval(avatarInterval);
+        avatarImg.src = avatarFrames[0];
+      }
+    }
+
+    chatForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const prompt = userInput.value.trim();
+      if (!prompt) return;
+      userInput.value = '';
+      await streamAssistantMessage(prompt);
+    };
+  </script>
+</body>
+</html> 

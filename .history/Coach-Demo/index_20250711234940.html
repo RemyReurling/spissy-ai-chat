@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPISSY, the AI SPIS analyst</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --main-color: #5B18C2;
+      --accent-color: #00D8AE;
+      --font-family: 'Plus Jakarta Sans', 'Open Sans', Arial, sans-serif;
+      --modal-bg: rgba(255,255,255,0.85);
+      --modal-blur: blur(12px);
+      --modal-font: #222;
+    }
+    body {
+      margin: 0;
+      background-color: var(--main-color);
+      /* Large, non-repeating tessellation inspired by Justin Prno's Tesselation 18, with more random angles */
+      background-image: url('data:image/svg+xml;utf8,<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="1920" height="1080" fill="%235B18C2"/><polygon points="0,0 700,80 400,600" fill="%237C3AED"/><polygon points="700,80 1300,60 900,700" fill="%233B0A6F"/><polygon points="1300,60 1920,0 1700,600" fill="%237C3AED"/><polygon points="400,600 900,700 600,1080" fill="%233B0A6F"/><polygon points="900,700 1700,600 1200,1080" fill="%237C3AED"/><polygon points="1700,600 1920,1080 1200,1080" fill="%233B0A6F"/><polygon points="0,1080 600,1080 400,600" fill="%237C3AED"/><polygon points="700,80 400,600 900,700" fill="%235B18C2"/><polygon points="900,700 1300,60 1700,600" fill="%235B18C2"/><polygon points="400,600 600,1080 900,700" fill="%237C3AED"/></svg>');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+      font-family: var(--font-family);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      display: none;
+    }
+    h1 {
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: 1px;
+      font-size: 2rem;
+    }
+    .avatar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2000;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #7DD3FC;
+      box-shadow: 0 2px 8px rgba(91,24,194,0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      /* Center the avatar so its midpoint touches the top left edge of the chat container */
+      transform: translate(-50%, -50%);
+    }
+    .avatar img {
+      width: 62px;
+      height: 62px;
+      object-fit: cover;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -60%) scale(1.1);
+      box-shadow: 0 4px 16px rgba(91,24,194,0.10);
+      background: #7DD3FC;
+    }
+    .chat-container {
+      background: rgba(255,255,255,0.32);
+      border-radius: 24px;
+      box-shadow: 0 4px 32px rgba(91,24,194,0.12);
+      width: 92vw;
+      max-width: 1400px;
+      min-height: 540px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      outline: 1.5px solid rgba(91,24,194,0.10);
+    }
+    .messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      background: rgba(255,255,255,0.18);
+      color: #222;
+      font-size: 1.08rem;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--accent-color);
+      color: var(--main-color);
+      padding: 10px 18px;
+      border-radius: 18px 18px 4px 18px;
+      max-width: 80%;
+      font-weight: 600;
+    }
+    .message.assistant {
+      align-self: flex-start;
+      background: #f3f3f3;
+      color: #222;
+      padding: 10px 18px;
+      border-radius: 18px 18px 18px 4px;
+      max-width: 80%;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+      padding: 16px;
+    }
+    .chat-input input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      font-family: var(--font-family);
+      background: transparent;
+      color: #222;
+      padding: 10px 12px;
+    }
+    .chat-input button {
+      background: var(--accent-color);
+      color: var(--main-color);
+      border: none;
+      border-radius: 18px;
+      padding: 10px 24px;
+      font-size: 1rem;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .chat-input button:hover {
+      background: #00c09c;
+    }
+    /* Onboarding Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(91,24,194,0.18);
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--modal-bg);
+      color: var(--modal-font);
+      border-radius: 24px;
+      box-shadow: 0 8px 40px rgba(91,24,194,0.18);
+      padding: 40px 32px 32px 32px;
+      min-width: 320px;
+      max-width: 90vw;
+      backdrop-filter: var(--modal-blur);
+      -webkit-backdrop-filter: var(--modal-blur);
+      text-align: center;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+      font-weight: 600;
+    }
+    .modal-content p {
+      color: #333;
+      margin-bottom: 32px;
+    }
+    .modal-content button {
+      background: var(--accent-color);
+      color: var(--main-color);
+      border: none;
+      border-radius: 18px;
+      padding: 10px 32px;
+      font-size: 1.1rem;
+      font-family: var(--font-family);
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,216,174,0.08);
+      transition: background 0.2s;
+    }
+    .modal-content button:hover {
+      background: #00c09c;
+    }
+    @media (max-width: 900px) {
+      .chat-container {
+        width: 100vw;
+        max-width: 100vw;
+        min-height: 70vh;
+        border-radius: 0;
+      }
+      .header {
+        padding: 24px 2vw 0 2vw;
+      }
+    }
+    @media (max-width: 600px) {
+      .chat-container {
+        width: 100vw;
+        max-width: 100vw;
+        min-height: 70vh;
+        border-radius: 0;
+      }
+      .header {
+        padding: 16px 2vw 0 2vw;
+      }
+      .avatar {
+        width: 40px;
+        height: 40px;
+      }
+      .modal-content {
+        min-width: 0;
+        padding: 24px 8px 16px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 style="margin-top:32px; text-align:center;">SPISSY, the AI SPIS analyst</h1>
+  <div style="width: 92vw; max-width: 1400px; margin: 0 auto 16px auto;">
+    <label for="system-prompt" style="font-weight:600; color:#fff;">System Prompt:</label>
+    <input id="system-prompt" type="text" placeholder="Enter system prompt (optional)" style="width:100%;margin-top:4px;margin-bottom:12px;padding:10px 12px;border-radius:12px;border:none;font-size:1rem;box-sizing:border-box;outline:none;" />
+  </div>
+  <div style="position: relative; width: 92vw; max-width: 1400px; margin: 32px auto 0 auto;">
+    <div class="avatar">
+      <img id="avatar-img" src="img/avataaars.png" alt="SPISSY Avatar" />
+    </div>
+    <div class="chat-container">
+      <div class="messages" id="messages"></div>
+      <form class="chat-input" id="chat-form" autocomplete="off">
+        <input type="text" id="user-input" placeholder="Type your message..." required />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+  <div class="modal" id="onboarding-modal" style="display:none;">
+    <div class="modal-content">
+      <h2>Welcome to the demo environment for SPISSY</h2>
+      <p>Just relax, let SPISSY guide you and get instant help.<br/><br/>Ready to get started?</p>
+      <button id="close-modal">Get Started</button>
+    </div>
+  </div>
+  <script>
+    // Onboarding modal logic
+    const modal = document.getElementById('onboarding-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    if (!localStorage.getItem('onboarded')) {
+      modal.style.display = 'flex';
+    }
+    closeModalBtn.onclick = () => {
+      modal.style.display = 'none';
+      localStorage.setItem('onboarded', '1');
+    };
+
+    // Chat logic
+    const messagesDiv = document.getElementById('messages');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+
+    function addMessage(text, sender) {
+      const msg = document.createElement('div');
+      msg.className = 'message ' + sender;
+      msg.textContent = text;
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    async function streamAssistantMessage(prompt) {
+      // Add user message
+      addMessage(prompt, 'user');
+      // Add assistant message placeholder
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      // Avatar cycling logic
+      const avatarImg = document.getElementById('avatar-img');
+      const avatarFrames = ['img/avataaars.png', 'img/avataaars (3).png'];
+      let avatarFrame = 0;
+      let avatarInterval = setInterval(() => {
+        avatarFrame = 1 - avatarFrame;
+        avatarImg.src = avatarFrames[avatarFrame];
+      }, 200);
+      // Stream from Netlify Function
+      try {
+        const systemPrompt = document.getElementById('system-prompt').value.trim();
+        const messages = [];
+        if (systemPrompt) {
+          messages.push({ role: 'system', content: systemPrompt });
+        }
+        messages.push({ role: 'user', content: prompt });
+        const response = await fetch('/api/openai-proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-3.5-turbo',
+            messages,
+            stream: true
+          })
+        });
+        if (!response.body) throw new Error('No response body');
+        const reader = response.body.getReader();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += new TextDecoder().decode(value);
+          // Parse stream chunks for OpenAI format
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.replace('data: ', '').trim();
+              if (data === '[DONE]') break;
+              try {
+                const json = JSON.parse(data);
+                const content = json.choices?.[0]?.delta?.content;
+                if (content) {
+                  msg.textContent += content;
+                  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+              } catch {}
+            }
+          }
+        }
+        // Stop avatar cycling when streaming ends
+        clearInterval(avatarInterval);
+        avatarImg.src = avatarFrames[0];
+      } catch (e) {
+        msg.textContent = 'Error: ' + e.message;
+        clearInterval(avatarInterval);
+        avatarImg.src = avatarFrames[0];
+      }
+    }
+
+    chatForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const prompt = userInput.value.trim();
+      if (!prompt) return;
+      userInput.value = '';
+      await streamAssistantMessage(prompt);
+    };
+  </script>
+</body>
+</html> 
