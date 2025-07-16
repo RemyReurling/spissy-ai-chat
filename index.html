@@ -573,6 +573,14 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     // Scroll to bottom when page loads
     scrollToBottom();
     
+    // Auto-send "hi" to initialize the conversation
+    async function initializeChat() {
+      await streamAssistantMessage("hi");
+    }
+    
+    // Initialize chat when page loads
+    window.addEventListener('load', initializeChat);
+    
     chatForm.onsubmit = async (e) => {
       e.preventDefault();
       const prompt = userInput.value.trim();
