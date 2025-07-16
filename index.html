@@ -501,11 +501,11 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            messages: conversation,
-            stream: true
-          })
+                  body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: conversation,
+          stream: true
+        })
         });
         
         if (!response.ok) {
@@ -585,11 +585,11 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: conversation,
-          stream: true
-        })
+                  body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: conversation,
+            stream: true
+          })
       });
       
       if (!response.ok) {
