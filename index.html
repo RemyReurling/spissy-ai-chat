@@ -496,7 +496,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
       }, 200);
       // Stream from Netlify Function
       try {
-        const response = await fetch('/api/openai-proxy', {
+        const response = await fetch('/api/llm-proxy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -580,7 +580,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
       conversation.push({ role: 'user', content: "hi" });
       
       // Get AI response without showing the user message
-      const response = await fetch('/api/openai-proxy', {
+      const response = await fetch('/api/llm-proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
