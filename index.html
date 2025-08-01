@@ -252,6 +252,32 @@
         padding: 24px 8px 16px 8px;
       }
     }
+    
+    .version-badge {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.8);
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 1000;
+      font-family: var(--font-family);
+    }
+    
+    @media (max-width: 600px) {
+      .version-badge {
+        bottom: 12px;
+        right: 12px;
+        font-size: 0.7rem;
+        padding: 4px 8px;
+      }
+    }
   </style>
   <!-- Add marked.js for markdown parsing -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -277,6 +303,8 @@
       <button id="close-modal">Get Started</button>
     </div>
   </div>
+  
+  <div class="version-badge">v0.1.1: new system prompt</div>
   <script>
     // System prompt is always included, not visible to users
     const SYSTEM_PROMPT = `Help de gebruiker stapsgewijs om een onderbouwde verantwoording te schrijven voor hun investering in tijd, geld en middelen, gebaseerd op het SPIS-model (Situation, Pain, Impact en Solution), zonder deze term te noemen. Inclusief een stakeholderanalyse, dynamische voorbeeldantwoorden en eindrapportage in projectvorm.
