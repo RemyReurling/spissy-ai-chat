@@ -479,8 +479,6 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     closeModalBtn.onclick = () => {
       modal.style.display = 'none';
       localStorage.setItem('onboarded', '1');
-      // Start chat after modal is dismissed
-      setTimeout(initializeChat, 1000);
     };
 
     // Chat logic
@@ -670,10 +668,17 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
         }
       }
       
-      // Create assistant message and display it
+      // Create assistant message with thinking bubble
       const msg = document.createElement('div');
       msg.className = 'message assistant';
       msg.id = 'initial-assistant-message';
+      
+      // Create speech bubble loading animation
+      const speechBubble = document.createElement('div');
+      speechBubble.className = 'speech-bubble-loading show';
+      speechBubble.textContent = '💬';
+      msg.appendChild(speechBubble);
+      
       messagesDiv.appendChild(msg);
       
       // Simulate streaming by displaying tokens progressively
@@ -708,13 +713,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     window.addEventListener('load', () => {
       // Always initialize chat after a delay
       setTimeout(() => {
-        if (localStorage.getItem('onboarded')) {
-          // For returning users, start immediately
-          initializeChat();
-        } else {
-          // For new users, wait for modal to be dismissed
-          // The initialization will be triggered by modal close button
-        }
+        initializeChat();
       }, 1000);
     });
     
