@@ -465,6 +465,9 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     let conversation = [
       { role: 'system', content: SYSTEM_PROMPT }
     ];
+    
+    // Flag to prevent multiple simultaneous requests
+    let isProcessing = false;
 
     // Onboarding modal logic
     const modal = document.getElementById('onboarding-modal');
@@ -475,6 +478,8 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     closeModalBtn.onclick = () => {
       modal.style.display = 'none';
       localStorage.setItem('onboarded', '1');
+      // Start chat after modal is dismissed
+      setTimeout(initializeChat, 1000);
     };
 
     // Chat logic
@@ -498,6 +503,10 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     }
 
     async function streamAssistantMessage(prompt) {
+      // Prevent multiple simultaneous requests
+      if (isProcessing) return;
+      isProcessing = true;
+      
       // Add user message to UI and conversation
       addMessage(prompt, 'user');
       conversation.push({ role: 'user', content: prompt });
@@ -586,6 +595,8 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
              avatarImg.src = avatarFrames[0];
              // Remove the ID to prevent future conflicts
              msg.removeAttribute('id');
+             // Reset processing flag
+             isProcessing = false;
            }
          }, 50); // Adjust speed as needed
         
@@ -593,6 +604,8 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
         msg.textContent = 'Error: ' + e.message;
         clearInterval(avatarInterval);
         avatarImg.src = avatarFrames[0];
+        // Reset processing flag on error
+        isProcessing = false;
       }
     }
 
@@ -608,11 +621,16 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     
     // Auto-send "hallo" to initialize the conversation (invisible to user)
     async function initializeChat() {
-      // Add "hallo" to conversation history without showing it in UI
-      conversation.push({ role: 'user', content: "hallo" });
+      // Prevent multiple initialization calls
+      if (isProcessing) return;
+      isProcessing = true;
       
-      // Get AI response without showing the user message
-      const response = await fetch('/api/llm-proxy', {
+      try {
+        // Add "hallo" to conversation history without showing it in UI
+        conversation.push({ role: 'user', content: "hallo" });
+        
+        // Get AI response without showing the user message
+        const response = await fetch('/api/llm-proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -672,14 +690,23 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
           conversation.push({ role: 'assistant', content: assistantText });
           // Remove the ID to prevent future conflicts
           msg.removeAttribute('id');
+          // Reset processing flag
+          isProcessing = false;
         }
       }, 50);
+      } catch (e) {
+        console.error('Error initializing chat:', e);
+        // Reset processing flag on error
+        isProcessing = false;
+      }
     }
     
     // Initialize chat when page loads
     window.addEventListener('load', () => {
-      // Small delay to ensure everything is loaded
-      setTimeout(initializeChat, 500);
+      // Only auto-start if user has already been onboarded (no modal)
+      if (localStorage.getItem('onboarded')) {
+        setTimeout(initializeChat, 500);
+      }
     });
     
     chatForm.onsubmit = async (e) => {
