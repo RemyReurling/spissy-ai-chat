@@ -505,6 +505,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
       // Add assistant message placeholder with speech bubble
       const msg = document.createElement('div');
       msg.className = 'message assistant';
+      msg.id = 'current-assistant-message';
       
       // Create speech bubble loading animation
       const speechBubble = document.createElement('div');
@@ -583,6 +584,8 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
              // Stop avatar cycling when streaming ends
              clearInterval(avatarInterval);
              avatarImg.src = avatarFrames[0];
+             // Remove the ID to prevent future conflicts
+             msg.removeAttribute('id');
            }
          }, 50); // Adjust speed as needed
         
@@ -603,10 +606,10 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     // Scroll to bottom when page loads
     scrollToBottom();
     
-    // Auto-send "hi" to initialize the conversation (invisible to user)
+    // Auto-send "hallo" to initialize the conversation (invisible to user)
     async function initializeChat() {
-      // Add "hi" to conversation history without showing it in UI
-      conversation.push({ role: 'user', content: "hi" });
+      // Add "hallo" to conversation history without showing it in UI
+      conversation.push({ role: 'user', content: "hallo" });
       
       // Get AI response without showing the user message
       const response = await fetch('/api/llm-proxy', {
@@ -651,6 +654,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
       // Create assistant message and display it
       const msg = document.createElement('div');
       msg.className = 'message assistant';
+      msg.id = 'initial-assistant-message';
       messagesDiv.appendChild(msg);
       
       // Simulate streaming by displaying tokens progressively
@@ -666,12 +670,17 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
         } else {
           clearInterval(streamInterval);
           conversation.push({ role: 'assistant', content: assistantText });
+          // Remove the ID to prevent future conflicts
+          msg.removeAttribute('id');
         }
       }, 50);
     }
     
     // Initialize chat when page loads
-    window.addEventListener('load', initializeChat);
+    window.addEventListener('load', () => {
+      // Small delay to ensure everything is loaded
+      setTimeout(initializeChat, 500);
+    });
     
     chatForm.onsubmit = async (e) => {
       e.preventDefault();
