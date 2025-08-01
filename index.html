@@ -468,6 +468,7 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     
     // Flag to prevent multiple simultaneous requests
     let isProcessing = false;
+    let isInitialized = false;
 
     // Onboarding modal logic
     const modal = document.getElementById('onboarding-modal');
@@ -503,8 +504,8 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     }
 
     async function streamAssistantMessage(prompt) {
-      // Prevent multiple simultaneous requests
-      if (isProcessing) return;
+      // Prevent multiple simultaneous user messages (but allow during initialization)
+      if (isProcessing && isInitialized) return;
       isProcessing = true;
       
       // Add user message to UI and conversation
@@ -619,15 +620,15 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
     // Scroll to bottom when page loads
     scrollToBottom();
     
-    // Auto-send "hallo" to initialize the conversation (invisible to user)
+    // Auto-send "hi" to initialize the conversation (invisible to user)
     async function initializeChat() {
       // Prevent multiple initialization calls
-      if (isProcessing) return;
+      if (isInitialized) return;
       isProcessing = true;
       
       try {
-        // Add "hallo" to conversation history without showing it in UI
-        conversation.push({ role: 'user', content: "hallo" });
+        // Add "hi" to conversation history without showing it in UI
+        conversation.push({ role: 'user', content: "hi" });
         
         // Get AI response without showing the user message
         const response = await fetch('/api/llm-proxy', {
@@ -690,23 +691,31 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
           conversation.push({ role: 'assistant', content: assistantText });
           // Remove the ID to prevent future conflicts
           msg.removeAttribute('id');
-          // Reset processing flag
+          // Reset processing flag and mark as initialized
           isProcessing = false;
+          isInitialized = true;
         }
       }, 50);
       } catch (e) {
         console.error('Error initializing chat:', e);
         // Reset processing flag on error
         isProcessing = false;
+        isInitialized = true; // Still mark as initialized to allow user messages
       }
     }
     
     // Initialize chat when page loads
     window.addEventListener('load', () => {
-      // Only auto-start if user has already been onboarded (no modal)
-      if (localStorage.getItem('onboarded')) {
-        setTimeout(initializeChat, 500);
-      }
+      // Always initialize chat after a delay
+      setTimeout(() => {
+        if (localStorage.getItem('onboarded')) {
+          // For returning users, start immediately
+          initializeChat();
+        } else {
+          // For new users, wait for modal to be dismissed
+          // The initialization will be triggered by modal close button
+        }
+      }, 1000);
     });
     
     chatForm.onsubmit = async (e) => {
