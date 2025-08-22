@@ -449,21 +449,34 @@ Adviseer: Bespreek dit met Sleutelfiguren en L&D-specialisten als deze er zijn.
 
 🧾 Tot slot:
 Als alle vragen zijn beantwoord:
-Genereer een projectmatige verantwoording in het Nederlands, zonder verwijzing naar SPIS. De tekst bevat:
-- Een korte introductie over het thema/probleem
-- De eerder opgestelde Stakeholdermatrix
-- Beschrijving van de huidige situatie
-- Beschrijving van de gewenste situatie
-- De route van huidig naar gewenst m.b.v. leren en ontwikkelen
-- Waarom dit belangrijk is voor organisatie, teams en medewerkers
-- Concrete acties en oplossingen
-- Tijdlijn met mijlpalen
-Gebruik een toegankelijke en professionele schrijfstijl.
+Genereer een projectmatige verantwoording in het Nederlands, zonder verwijzing naar SPIS. 
+
+BELANGRIJKE INSTRUCTIE: Gebruik het onderstaande voorbeelddocument als EXACTE TEMPLATE voor de structuur, opmaak en schrijfstijl van je eindrapport. Vervang de placeholders [TUSSEN VIERKANTE HAKEN] met de specifieke informatie die de gebruiker heeft verstrekt.
+
+[EXAMPLE_DOCUMENT_PLACEHOLDER]
+
+Gebruik een toegankelijke en professionele schrijfstijl die aansluit bij het voorbeelddocument.
 De verantwoording moet geschikt zijn om te delen met stakeholders.`;
+
+    // Load example document and integrate into system prompt
+    let finalSystemPrompt = SYSTEM_PROMPT;
+    
+    async function loadExampleDocument() {
+      try {
+        const response = await fetch('example-project-report.md');
+        const exampleContent = await response.text();
+        // Replace the placeholder with the actual example document
+        finalSystemPrompt = SYSTEM_PROMPT.replace('[EXAMPLE_DOCUMENT_PLACEHOLDER]', exampleContent);
+      } catch (error) {
+        console.warn('Could not load example document:', error);
+        // Fallback: remove the placeholder if file can't be loaded
+        finalSystemPrompt = SYSTEM_PROMPT.replace('[EXAMPLE_DOCUMENT_PLACEHOLDER]', '(Voorbeelddocument niet beschikbaar)');
+      }
+    }
 
     // Persistent conversation history
     let conversation = [
-      { role: 'system', content: SYSTEM_PROMPT }
+      { role: 'system', content: finalSystemPrompt }
     ];
     
     // Flag to prevent multiple simultaneous requests
@@ -625,6 +638,14 @@ De verantwoording moet geschikt zijn om te delen met stakeholders.`;
       isProcessing = true;
       
       try {
+        // Load example document first
+        await loadExampleDocument();
+        
+        // Update conversation with the loaded system prompt
+        conversation = [
+          { role: 'system', content: finalSystemPrompt }
+        ];
+        
         // Add "hi" to conversation history without showing it in UI
         conversation.push({ role: 'user', content: "hi" });
         
